@@ -1,15 +1,15 @@
 use cryptoki::{
     context::{CInitializeArgs, Pkcs11},
     mechanism::Mechanism,
-    object::{Attribute, AttributeType, ObjectClass},
+    object::{Attribute, ObjectClass},
     session::UserType,
-    types::{AuthPin, Ulong},
+    types::AuthPin,
 };
 use sha3::{Digest, Keccak256};
 use std::{env, path::Path};
 
 const PKCS11_LIB: &str = "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so";
-const KEY_LABEL: &str = "eth-private-key";
+const KEY_LABEL: &str = "angstrom_test-eth-private-key";
 
 fn main() -> eyre::Result<()> {
     // ── 1.  Load & initialise the PKCS #11 library
@@ -20,7 +20,8 @@ fn main() -> eyre::Result<()> {
     let slot = pkcs11.get_all_slots()?[0];
 
     // ── 3.  Open an RW session and log in
-    let mut sess = pkcs11.open_rw_session(slot)?;
+    let sess = pkcs11.open_rw_session(slot)?;
+
     // PIN format: <username>:<password>  (e.g., "CryptoUser:CUPassword123!")
     let pin = env::var("CLOUDHSM_PIN").expect("export CLOUDHSM_PIN=\"CryptoUser:YourPass\"");
     sess.login(UserType::User, Some(&AuthPin::new(pin)))?;
