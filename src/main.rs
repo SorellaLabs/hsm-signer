@@ -17,7 +17,7 @@ fn main() -> eyre::Result<()> {
     pkcs11.initialize(CInitializeArgs::OsThreads)?;
 
     // ── 2.  Pick the first slot that has a token present
-    let slot = pkcs11.get_all_slots()?[0];
+    let slot = pkcs11.get_slots_with_token()?[0];
 
     // ── 3.  Open an RW session and log in
     let sess = pkcs11.open_rw_session(slot)?;
@@ -28,7 +28,7 @@ fn main() -> eyre::Result<()> {
 
     // ── 4.  Locate the secp256k1 private key by label
     let tmpl = vec![
-        Attribute::Class(ObjectClass::PRIVATE_KEY),
+        // Attribute::Class(ObjectClass::PRIVATE_KEY),
         Attribute::Label(KEY_LABEL.into()),
     ];
     let handles = sess.find_objects(&tmpl)?;
