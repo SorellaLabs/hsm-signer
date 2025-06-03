@@ -39,7 +39,8 @@ fn main() -> eyre::Result<()> {
         .expect("key with that label not found");
 
     // ── 5.  Hash your message with Keccak-256
-    let digest = TxLegacy::default().encoded_for_signing();
+    let msg = TxLegacy::default();
+    let digest = msg.signature_hash().0;
 
     // ── 6.  Sign – PKCS #11 expects the raw hash for CKM_ECDSA
 
