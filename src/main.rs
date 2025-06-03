@@ -1,3 +1,4 @@
+use alloy_consensus::{SignableTransaction, TxLegacy};
 use cryptoki::{
     context::{CInitializeArgs, Pkcs11},
     mechanism::Mechanism,
@@ -6,7 +7,7 @@ use cryptoki::{
     types::AuthPin,
 };
 use sha3::{Digest, Keccak256};
-use std::{env, path::Path};
+use std::{env, path::Path, time::Instant};
 
 const PKCS11_LIB: &str = "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so";
 const KEY_LABEL: &str = "angstrom_test-eth-private-key";
@@ -38,11 +39,11 @@ fn main() -> eyre::Result<()> {
         .expect("key with that label not found");
 
     // ── 5.  Hash your message with Keccak-256
-    let msg = b"hello ethereum via CloudHSM";
-    let digest = Keccak256::digest(msg);
+    let digest = TxLegacy::default().encoded_for_signing();
 
     // ── 6.  Sign – PKCS #11 expects the raw hash for CKM_ECDSA
-    let sig = sess.sign(&Mechanism::Ecdsa, key, &digest)?;
+
+    let sig = with_time("sign tx", || sess.sign(&Mechanism::Ecdsa, key, &digest))?;
 
     // signature = r||s (64 bytes for secp256k1)
     println!("Keccak-256(d) : 0x{}", hex::encode(digest));
@@ -52,4 +53,11 @@ fn main() -> eyre::Result<()> {
     sess.logout()?;
     pkcs11.finalize();
     Ok(())
+}
+
+fn with_time<F: Fn() -> T, T>(name: &str, f: F) -> T {
+    let now = Instant::now();
+    let out = f();
+    println!("{name}: {} mcs", now.elapsed().as_micros());
+    out
 }

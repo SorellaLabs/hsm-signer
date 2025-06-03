@@ -3,8 +3,20 @@ name = "aws-hsm-cli-rust"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "aws_hsm_cli_rust"
+
 [dependencies]
 cryptoki = "0.9"
 sha3 = "0.10"
 hex = "0.4"
 eyre = "0.6"
+
+
+alloy-primitives = { version = "1.0.5", features = ["rand"] }
+alloy-consensus = "1.0.5"
+alloy-signer-local = "1.0.5"
+alloy-signer = "1.0.5"
+
+
+once_cell = "1.21"
