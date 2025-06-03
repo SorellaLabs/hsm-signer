@@ -59,6 +59,10 @@ fn main() -> eyre::Result<()> {
 fn with_time<F: Fn() -> T, T>(name: &str, f: F) -> T {
     let now = Instant::now();
     let out = f();
-    println!("{name}: {} mcs", now.elapsed().as_micros());
+    println!(
+        "{name}: {} mcs - {} ms",
+        now.elapsed().as_micros(),
+        now.elapsed().as_millis()
+    );
     out
 }
