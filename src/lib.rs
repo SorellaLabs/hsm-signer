@@ -314,6 +314,13 @@ mod tests {
 
         let hsm_tx_sig1 = hms_signer.sign_hash_sync(&tx.signature_hash()).unwrap();
         let kms_tx_sig1 = kms_signer.sign_hash(&tx.signature_hash()).await.unwrap();
-        assert_eq!(hsm_tx_sig1, kms_tx_sig1);
+        assert_eq!(
+            hsm_tx_sig1
+                .recover_from_prehash(&tx.signature_hash())
+                .unwrap(),
+            kms_tx_sig1
+                .recover_from_prehash(&tx.signature_hash())
+                .unwrap()
+        );
     }
 }
