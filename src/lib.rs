@@ -1,13 +1,16 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
+use alloy_consensus::SignableTransaction;
 use alloy_primitives::{Address, B256, ChainId, keccak256};
 use alloy_signer::{
-    Signature, SignerSync,
+    Signature, Signer, SignerSync,
     k256::{
-        EncodedPoint, PublicKey,
+        EncodedPoint,
         ecdsa::{self, VerifyingKey},
     },
+    sign_transaction_with_chain_id,
 };
+use async_trait::async_trait;
 
 use cryptoki::{
     context::{CInitializeArgs, Pkcs11},
@@ -17,16 +20,32 @@ use cryptoki::{
     types::AuthPin,
 };
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
+use tracing::instrument;
 
 pub static PKCS11: OnceCell<Pkcs11> = OnceCell::new();
 
+#[derive(Clone)]
 pub struct Pkcs11Signer {
-    session: Session,
-    verifying_key: VerifyingKey,
+    session: Arc<Mutex<Session>>,
+    pk_handle: ObjectHandle,
+    pubkey: VerifyingKey,
     address: Address,
-    key_handle: ObjectHandle,
-    chain_id: ChainId,
+    chain_id: Option<ChainId>,
 }
+
+impl std::fmt::Debug for Pkcs11Signer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Pkcs11Signer")
+            .field("pubkey", &hex::encode(self.pubkey.to_sec1_bytes()))
+            .field("address", &self.address)
+            .field("chain_id", &self.chain_id)
+            .finish()
+    }
+}
+
+// trait Pkcs11SignerSS: Send + Sync {}
+// impl Pkcs11SignerSS for Pkcs11Signer {}
 
 impl Pkcs11Signer {
     pub fn new_from_env(
@@ -62,7 +81,7 @@ impl Pkcs11Signer {
             _ => panic!("Expected EC_POINT type"),
         };
         let address = address_from_ec_point(&der).unwrap();
-        let verifying_key = verifying_key_ec_point(&der).unwrap();
+        let pubkey = verifying_key_ec_point(&der).unwrap();
 
         let priv_handles = session.find_objects(&[Attribute::Label(private_key_label.into())])?;
         let priv_key = priv_handles
@@ -71,17 +90,19 @@ impl Pkcs11Signer {
             .expect("key with that label not found");
 
         Ok(Self {
-            session,
+            session: Arc::new(Mutex::new(session)),
             address,
-            key_handle: priv_key,
-            chain_id,
-            verifying_key,
+            pk_handle: priv_key,
+            chain_id: Some(chain_id),
+            pubkey,
         })
     }
 
     pub fn sign_message<B: AsRef<[u8]>>(&self, msg: B) -> Result<Vec<u8>, cryptoki::error::Error> {
-        self.session
-            .sign(&Mechanism::Ecdsa, self.key_handle, msg.as_ref())
+        let lock = self.session.lock();
+        let out = lock.sign(&Mechanism::Ecdsa, self.pk_handle, msg.as_ref());
+        drop(lock);
+        out
     }
 
     pub fn sign_digest_with_key(&self, digest: &B256) -> eyre::Result<ecdsa::Signature> {
@@ -90,25 +111,71 @@ impl Pkcs11Signer {
         Ok(sig.normalize_s().unwrap_or(sig))
     }
 
-    // pub fn sign_digest_inner(&self, digest: &B256) -> eyre::Result<Signature> {
-    //     let sig = self.sign_digest_with_key(digest)?;
-    //     Ok(sig_from_digest_bytes_trial_recovery(
-    //         sig,
-    //         digest,
-    //         &self.pubkey,
-    //     ))
-    // }
+    pub fn sign_digest_inner(&self, digest: &B256) -> eyre::Result<Signature> {
+        let sig = self.sign_digest_with_key(digest)?;
+        Ok(sig_from_digest_bytes_trial_recovery(
+            sig,
+            digest,
+            &self.pubkey,
+        ))
+    }
 }
 
-// impl SignerSync for Pkcs11Signer {
-//     fn sign_hash_sync(&self, hash: &B256) -> alloy_signer::Result<Signature> {
-//         self.signer.sign_hash(hash)
-//     }
+#[cfg_attr(target_family = "wasm", async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait)]
+impl alloy_network::TxSigner<Signature> for Pkcs11Signer {
+    fn address(&self) -> Address {
+        self.address
+    }
 
-//     fn chain_id_sync(&self) -> Option<ChainId> {
-//         Some(self.chain_id)
-//     }
-// }
+    #[inline]
+    #[doc(alias = "sign_tx")]
+    async fn sign_transaction(
+        &self,
+        tx: &mut dyn SignableTransaction<Signature>,
+    ) -> alloy_signer::Result<Signature> {
+        sign_transaction_with_chain_id!(self, tx, self.sign_hash(&tx.signature_hash()).await)
+    }
+}
+
+#[cfg_attr(target_family = "wasm", async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait)]
+impl Signer for Pkcs11Signer {
+    #[instrument(err)]
+    #[allow(clippy::blocks_in_conditions)]
+    async fn sign_hash(&self, hash: &B256) -> alloy_signer::Result<Signature> {
+        self.sign_digest_inner(hash)
+            .map_err(alloy_signer::Error::other)
+    }
+
+    #[inline]
+    fn address(&self) -> Address {
+        self.address
+    }
+
+    #[inline]
+    fn chain_id(&self) -> Option<ChainId> {
+        self.chain_id
+    }
+
+    #[inline]
+    fn set_chain_id(&mut self, chain_id: Option<ChainId>) {
+        self.chain_id = chain_id;
+    }
+}
+
+impl SignerSync for Pkcs11Signer {
+    #[inline]
+    fn sign_hash_sync(&self, hash: &B256) -> alloy_signer::Result<Signature> {
+        self.sign_digest_inner(hash)
+            .map_err(alloy_signer::Error::other)
+    }
+
+    #[inline]
+    fn chain_id_sync(&self) -> Option<ChainId> {
+        self.chain_id
+    }
+}
 
 fn sig_from_digest_bytes_trial_recovery(
     sig: ecdsa::Signature,
@@ -180,7 +247,6 @@ mod tests {
     use alloy_consensus::{SignableTransaction, TxLegacy};
     use alloy_primitives::{Address, TxKind};
     use alloy_signer::Signer;
-    use alloy_signer_local::LocalSigner;
     use aws_config::{BehaviorVersion, Region};
 
     #[tokio::test]
@@ -195,8 +261,6 @@ mod tests {
         )
         .unwrap();
 
-        println!("HMS address: {}", hms_signer.address);
-
         let mut cfg_builder = aws_config::load_defaults(BehaviorVersion::latest())
             .await
             .into_builder();
@@ -210,35 +274,14 @@ mod tests {
             .await
             .unwrap();
 
-        println!("KMS address: {}", hms_signer.address);
+        let mut tx = TxLegacy::default();
+        tx.to = TxKind::Call(Address::random());
+
+        let hsm_tx_sig = hms_signer.sign_hash_sync(&tx.signature_hash()).unwrap();
+        let kms_tx_sig = kms_signer.sign_hash(&tx.signature_hash()).await.unwrap();
 
         assert_eq!(hms_signer.address, kms_signer.address());
-        assert_eq!(
-            hms_signer.verifying_key,
-            kms_signer.get_pubkey().await.unwrap()
-        );
-    }
-
-    #[test]
-    fn test_sign() {
-        let signer = Pkcs11Signer::new_from_env(
-            "angstrom3-eth-public-key-test-meow",
-            "angstrom3-eth-private-key-test-meow",
-            "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
-            ChainId::from(1u64),
-        )
-        .unwrap();
-
-        println!("address: {}", signer.address);
-
-        let mut first_msg = TxLegacy::default();
-        first_msg.to = TxKind::Call(Address::random());
-
-        let hash = first_msg.signature_hash();
-
-        // LocalSigner::random().si
-
-        let mut second_msg = TxLegacy::default();
-        second_msg.to = TxKind::Call(Address::random());
+        assert_eq!(hms_signer.pubkey, kms_signer.get_pubkey().await.unwrap());
+        assert_eq!(hsm_tx_sig, kms_tx_sig);
     }
 }

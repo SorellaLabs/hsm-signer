@@ -884,9 +884,11 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-consensus",
+ "alloy-network",
  "alloy-primitives",
  "alloy-signer",
  "alloy-signer-local",
+ "async-trait",
  "aws-config",
  "aws-sdk-kms",
  "cryptoki",
@@ -894,8 +896,10 @@ dependencies = [
  "eyre",
  "hex",
  "once_cell",
+ "parking_lot",
  "sha3",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
