@@ -112,7 +112,7 @@ impl Pkcs11Signer {
     }
 
     pub fn sign_digest_inner(&self, digest: &B256) -> eyre::Result<Signature> {
-        let sig = self.sign_digest_with_key(digest)?;
+        let sig = self.sign_digest_with_key(digest).unwrap();
         Ok(sig_from_digest_bytes_trial_recovery(
             sig,
             digest,
