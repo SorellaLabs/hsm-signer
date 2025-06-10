@@ -98,7 +98,7 @@ impl Pkcs11Signer {
     pub fn sign_message<B: AsRef<[u8]>>(&self, msg: B) -> Result<Vec<u8>, cryptoki::error::Error> {
         let lock = self.session.lock();
         let out = lock
-            .sign(&Mechanism::EcdsaSha256, self.pk_handle, msg.as_ref())
+            .sign(&Mechanism::Ecdsa, self.pk_handle, msg.as_ref())
             .unwrap();
         drop(lock);
         Ok(out)
@@ -296,13 +296,13 @@ mod tests {
         tx.to = TxKind::Call(Address::random());
 
         let hsm_tx_sig0 = hms_signer
-            .sign_transaction(&mut tx.clone())
+            .sign_transaction(&mut tx)
             .await
             .unwrap()
             .recover_from_prehash(&tx.signature_hash())
             .unwrap();
         let kms_tx_sig0 = kms_signer
-            .sign_transaction(&mut tx.clone())
+            .sign_transaction(&mut tx)
             .await
             .unwrap()
             .recover_from_prehash(&tx.signature_hash())
