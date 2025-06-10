@@ -89,7 +89,7 @@ impl std::fmt::Debug for Pkcs11Signer {
     }
 }
 
-pub static PKCS11: OnceCell<Pkcs11> = OnceCell::new();
+static PKCS11: OnceCell<Pkcs11> = OnceCell::new();
 
 #[derive(Debug, Clone)]
 pub struct Pkcs11SignerConfig {
