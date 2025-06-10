@@ -295,22 +295,16 @@ mod tests {
         let mut tx = TxLegacy::default();
         tx.to = TxKind::Call(Address::random());
 
-        //         let mut hsm_tx = tx.clone();
-        // let mut kms_tx = tx.clone();
-
-        //         let hsm_tx_sig0 = hms_signer
-        //             .sign_transaction(&mut hsm_tx)
-        //             .await
-        //             .unwrap()
-        //             .recover_from_prehash(&tx.signature_hash())
-        //             .unwrap();
-        //         let kms_tx_sig0 = kms_signer
-        //             .sign_transaction(&mut tx)
-        //             .await
-        //             .unwrap()
-        //             .recover_from_prehash(&tx.signature_hash())
-        //             .unwrap();
-        //         assert_eq!(hsm_tx_sig0, kms_tx_sig0);
+        let hsm_tx_sig0 = hms_signer.sign_transaction(&mut tx).await.unwrap();
+        let kms_tx_sig0 = kms_signer.sign_transaction(&mut tx).await.unwrap();
+        assert_eq!(
+            hsm_tx_sig0
+                .recover_from_prehash(&tx.signature_hash())
+                .unwrap(),
+            kms_tx_sig0
+                .recover_from_prehash(&tx.signature_hash())
+                .unwrap()
+        );
 
         let hsm_tx_sig1 = hms_signer.sign_hash_sync(&tx.signature_hash()).unwrap();
         let kms_tx_sig1 = kms_signer.sign_hash(&tx.signature_hash()).await.unwrap();
