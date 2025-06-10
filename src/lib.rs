@@ -136,7 +136,7 @@ mod tests {
         let signer = Pkcs11Signer::new_from_env(
             "angstrom3-eth-public-key",
             "angstrom3-eth-private-key",
-            "/opt/cloudhsm/bin/libcloudhsm_pkcs11.so",
+            "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
             ChainId::from(1u64),
         )
         .unwrap();
