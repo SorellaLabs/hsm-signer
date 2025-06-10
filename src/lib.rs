@@ -254,18 +254,17 @@ mod tests {
     use alloy_signer::Signer;
     use aws_config::{BehaviorVersion, Region};
 
-    #[tokio::test]
-    async fn test_kms_equals() {
-        dotenv::dotenv().ok();
-
-        let hms_signer = Pkcs11Signer::new_from_env(
+    fn hms_signer() -> Pkcs11Signer {
+        Pkcs11Signer::new_from_env(
             "angstrom3-eth-public-key-test-meow",
             "angstrom3-eth-private-key-test-meow",
             "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
             ChainId::from(1u64),
         )
-        .unwrap();
+        .unwrap()
+    }
 
+    async fn kms_signer() -> AwsSigner {
         let mut cfg_builder = aws_config::load_defaults(BehaviorVersion::latest())
             .await
             .into_builder();
@@ -275,9 +274,17 @@ mod tests {
         let client = aws_sdk_kms::Client::new(&cfg);
 
         let key_id = "534a7042-d225-4a8a-8494-3fb29c9c1617";
-        let kms_signer = AwsSigner::new(client, key_id.into(), Some(1))
+        AwsSigner::new(client, key_id.into(), Some(1))
             .await
-            .unwrap();
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_kms_equals() {
+        dotenv::dotenv().ok();
+
+        let hms_signer = hms_signer();
+        let kms_signer = kms_signer().await;
 
         assert_eq!(
             hms_signer.address,
@@ -288,8 +295,18 @@ mod tests {
         let mut tx = TxLegacy::default();
         tx.to = TxKind::Call(Address::random());
 
-        let hsm_tx_sig0 = hms_signer.sign_transaction(&mut tx.clone()).await.unwrap();
-        let kms_tx_sig0 = kms_signer.sign_transaction(&mut tx.clone()).await.unwrap();
+        let hsm_tx_sig0 = hms_signer
+            .sign_transaction(&mut tx.clone())
+            .await
+            .unwrap()
+            .recover_from_prehash(&tx.signature_hash())
+            .unwrap();
+        let kms_tx_sig0 = kms_signer
+            .sign_transaction(&mut tx.clone())
+            .await
+            .unwrap()
+            .recover_from_prehash(&tx.signature_hash())
+            .unwrap();
         assert_eq!(hsm_tx_sig0, kms_tx_sig0);
 
         let hsm_tx_sig1 = hms_signer.sign_hash_sync(&tx.signature_hash()).unwrap();
