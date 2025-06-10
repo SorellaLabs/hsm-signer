@@ -148,8 +148,8 @@ mod tests {
     #[test]
     fn test_sign() {
         let signer = Pkcs11Signer::new_from_env(
-            "angstrom3-eth-public-key-test",
-            "angstrom3-eth-private-key-test",
+            "angstrom3-eth-public-key-test-meow",
+            "angstrom3-eth-private-key-test-meow",
             "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
             ChainId::from(1u64),
         )
@@ -180,6 +180,8 @@ mod tests {
         )
         .unwrap();
 
+        println!("HMS address: {}", hms_signer.address);
+
         let mut cfg_builder = aws_config::load_defaults(BehaviorVersion::latest())
             .await
             .into_builder();
@@ -189,10 +191,12 @@ mod tests {
         let client = aws_sdk_kms::Client::new(&cfg);
 
         let key_id = "534a7042-d225-4a8a-8494-3fb29c9c1617";
-        let signer = AwsSigner::new(client, key_id.into(), Some(1))
+        let kms_signer = AwsSigner::new(client, key_id.into(), Some(1))
             .await
             .unwrap();
 
-        assert_eq!(hms_signer.address, signer.address());
+        println!("KMS address: {}", hms_signer.address);
+
+        assert_eq!(hms_signer.address, kms_signer.address());
     }
 }
