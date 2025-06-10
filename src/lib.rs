@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use alloy_primitives::{Address, B256, ChainId};
+use alloy_primitives::{Address, B256, ChainId, keccak256};
 use alloy_signer::{
     Signature, SignerSync,
     k256::ecdsa::{self, VerifyingKey},
@@ -55,14 +55,9 @@ impl Pkcs11Signer {
         let ec_attr = session.get_attributes(pub_key, &[AttributeType::EcPoint])?;
         let der = match &ec_attr[0] {
             Attribute::EcPoint(point) => point.clone(),
-            _ => panic!("Unexpected EC_POINT type"),
+            _ => panic!("Expected EC_POINT type"),
         };
-        let address = if der.len() > 2 && der[0] == 0x04 {
-            Address::from_slice(&der[..])
-            // Address::from_slice(&der[2..])
-        } else {
-            Address::from_slice(&der[..])
-        };
+        let address = address_from_ec_point(&der).unwrap();
 
         let priv_handles = session.find_objects(&[Attribute::Label(private_key_label.into())])?;
         let priv_key = priv_handles
@@ -122,6 +117,21 @@ fn check_candidate(signature: &Signature, hash: &B256, pubkey: &VerifyingKey) ->
         .recover_from_prehash(hash)
         .map(|key| key == *pubkey)
         .unwrap_or(false)
+}
+
+fn address_from_ec_point(der: &[u8]) -> eyre::Result<Address> {
+    // 1.  DER-encoded OCTET STRING => skip the tag & length
+    let (_, octet) = der.split_at(2);
+
+    // 2.  First byte of the OCTET STRING is 0x04 (uncompressed prefix)
+    if octet.len() != 65 || octet[0] != 0x04 {
+        eyre::bail!("unexpected EC point format");
+    }
+    let pubkey = &octet[1..]; // 64-byte X‖Y
+
+    // 3.  Keccak-256 and 4. take the last 20 bytes
+    let hash = keccak256(pubkey);
+    Ok(Address::from_slice(&hash[12..]))
 }
 
 #[cfg(test)]
