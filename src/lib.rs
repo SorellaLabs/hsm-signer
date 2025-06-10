@@ -3,7 +3,10 @@ use std::path::Path;
 use alloy_primitives::{Address, B256, ChainId, keccak256};
 use alloy_signer::{
     Signature, SignerSync,
-    k256::ecdsa::{self, VerifyingKey},
+    k256::{
+        EncodedPoint, PublicKey,
+        ecdsa::{self, VerifyingKey},
+    },
 };
 
 use cryptoki::{
@@ -19,6 +22,7 @@ pub static PKCS11: OnceCell<Pkcs11> = OnceCell::new();
 
 pub struct Pkcs11Signer {
     session: Session,
+    verifying_key: VerifyingKey,
     address: Address,
     key_handle: ObjectHandle,
     chain_id: ChainId,
@@ -58,6 +62,7 @@ impl Pkcs11Signer {
             _ => panic!("Expected EC_POINT type"),
         };
         let address = address_from_ec_point(&der).unwrap();
+        let verifying_key = verifying_key_ec_point(&der).unwrap();
 
         let priv_handles = session.find_objects(&[Attribute::Label(private_key_label.into())])?;
         let priv_key = priv_handles
@@ -70,6 +75,7 @@ impl Pkcs11Signer {
             address,
             key_handle: priv_key,
             chain_id,
+            verifying_key,
         })
     }
 
@@ -83,6 +89,15 @@ impl Pkcs11Signer {
         let sig = ecdsa::Signature::from_der(raw.as_ref())?;
         Ok(sig.normalize_s().unwrap_or(sig))
     }
+
+    // pub fn sign_digest_inner(&self, digest: &B256) -> eyre::Result<Signature> {
+    //     let sig = self.sign_digest_with_key(digest)?;
+    //     Ok(sig_from_digest_bytes_trial_recovery(
+    //         sig,
+    //         digest,
+    //         &self.pubkey,
+    //     ))
+    // }
 }
 
 // impl SignerSync for Pkcs11Signer {
@@ -134,6 +149,29 @@ fn address_from_ec_point(der: &[u8]) -> eyre::Result<Address> {
     Ok(Address::from_slice(&hash[12..]))
 }
 
+fn verifying_key_ec_point(der: &[u8]) -> eyre::Result<VerifyingKey> {
+    // --- unwrap DER if present ---
+    let sec1 = match der {
+        [0x04, l, rest @ ..] if *l as usize == rest.len() => rest,
+        _ => der,
+    };
+
+    // --- ensure 65-byte uncompressed point ---
+    let sec1 = if sec1[0] == 0x04 && sec1.len() == 65 {
+        sec1
+    } else if sec1.len() == 64 {
+        let mut buf = [0u8; 65];
+        buf[0] = 0x04;
+        buf[1..].copy_from_slice(sec1);
+        &buf
+    } else {
+        eyre::bail!("unexpected EC point format/length");
+    };
+
+    let point = EncodedPoint::from_bytes(sec1)?;
+    Ok(VerifyingKey::from_encoded_point(&point)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,29 +182,6 @@ mod tests {
     use alloy_signer::Signer;
     use alloy_signer_local::LocalSigner;
     use aws_config::{BehaviorVersion, Region};
-
-    #[test]
-    fn test_sign() {
-        let signer = Pkcs11Signer::new_from_env(
-            "angstrom3-eth-public-key-test-meow",
-            "angstrom3-eth-private-key-test-meow",
-            "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
-            ChainId::from(1u64),
-        )
-        .unwrap();
-
-        println!("address: {}", signer.address);
-
-        let mut first_msg = TxLegacy::default();
-        first_msg.to = TxKind::Call(Address::random());
-
-        let hash = first_msg.signature_hash();
-
-        // LocalSigner::random().si
-
-        let mut second_msg = TxLegacy::default();
-        second_msg.to = TxKind::Call(Address::random());
-    }
 
     #[tokio::test]
     async fn test_kms_equals() {
@@ -198,5 +213,32 @@ mod tests {
         println!("KMS address: {}", hms_signer.address);
 
         assert_eq!(hms_signer.address, kms_signer.address());
+        assert_eq!(
+            hms_signer.verifying_key,
+            kms_signer.get_pubkey().await.unwrap()
+        );
+    }
+
+    #[test]
+    fn test_sign() {
+        let signer = Pkcs11Signer::new_from_env(
+            "angstrom3-eth-public-key-test-meow",
+            "angstrom3-eth-private-key-test-meow",
+            "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
+            ChainId::from(1u64),
+        )
+        .unwrap();
+
+        println!("address: {}", signer.address);
+
+        let mut first_msg = TxLegacy::default();
+        first_msg.to = TxKind::Call(Address::random());
+
+        let hash = first_msg.signature_hash();
+
+        // LocalSigner::random().si
+
+        let mut second_msg = TxLegacy::default();
+        second_msg.to = TxKind::Call(Address::random());
     }
 }
