@@ -107,12 +107,16 @@ impl Pkcs11Signer {
     pub fn sign_digest_with_key(&self, digest: &B256) -> eyre::Result<ecdsa::Signature> {
         let raw = self.sign_message(digest)?;
         println!("{raw:?}");
-        let sig = ecdsa::Signature::from_der(raw.as_ref()).unwrap();
+        let sig = ecdsa::Signature::from_slice(&raw).unwrap();
         Ok(sig.normalize_s().unwrap_or(sig))
     }
 
+    pub fn sign_digest(&self, digest: &B256) -> eyre::Result<ecdsa::Signature> {
+        self.sign_digest_with_key(digest)
+    }
+
     pub fn sign_digest_inner(&self, digest: &B256) -> eyre::Result<Signature> {
-        let sig = self.sign_digest_with_key(digest).unwrap();
+        let sig = self.sign_digest(digest).unwrap();
         Ok(sig_from_digest_bytes_trial_recovery(
             sig,
             digest,
