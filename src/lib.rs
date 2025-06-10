@@ -64,6 +64,7 @@ use tracing::instrument;
 ///     0,
 ///     std::env::var("CLOUDHSM_PIN")?.into(),
 ///     "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so".into(),
+///     0
 /// );
 ///
 /// let signer = Pkcs11Signer::new(cfg, Some(ChainId::from(1u64)))?;
@@ -99,6 +100,7 @@ pub struct Pkcs11SignerConfig {
     pub private_key_slot: usize,
     pub cloud_hsm_pin: AuthPin,
     pub pkcs11_lib_path: PathBuf,
+    pub token_slot: usize,
 }
 
 impl Pkcs11SignerConfig {
@@ -109,6 +111,7 @@ impl Pkcs11SignerConfig {
         private_key_slot: usize,
         cloud_hsm_pin: AuthPin,
         pkcs11_lib_path: PathBuf,
+        token_slot: usize,
     ) -> Self {
         Self {
             public_key_attribute,
@@ -117,6 +120,7 @@ impl Pkcs11SignerConfig {
             private_key_slot,
             cloud_hsm_pin,
             pkcs11_lib_path,
+            token_slot,
         }
     }
 
@@ -136,6 +140,7 @@ impl Pkcs11SignerConfig {
                 ),
             ),
             pkcs11_lib_path,
+            token_slot: 0,
         }
     }
 }
@@ -177,7 +182,7 @@ impl Pkcs11Signer {
             Ok::<_, cryptoki::error::Error>(pkcs11)
         })?;
 
-        let slot = pkcs11.get_slots_with_token()?[0];
+        let slot = pkcs11.get_slots_with_token()?[config.token_slot];
         let session = pkcs11.open_rw_session(slot)?;
 
         session.login(UserType::User, Some(&config.cloud_hsm_pin))?;

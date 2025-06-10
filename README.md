@@ -40,6 +40,7 @@ fn main() -> anyhow::Result<()> {
         0,
         std::env::var("CLOUDHSM_PIN")?.into(),
         "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so".into(),
+        0
     );
 
     let signer = Pkcs11Signer::new(cfg, Some(ChainId::from(1u64)))?;
