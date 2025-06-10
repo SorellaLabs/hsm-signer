@@ -879,31 +879,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aws-hsm-cli-rust"
-version = "0.1.0"
-dependencies = [
- "alloy",
- "alloy-consensus",
- "alloy-network",
- "alloy-primitives",
- "alloy-signer",
- "async-trait",
- "aws-config",
- "aws-sdk-kms",
- "cryptoki",
- "dotenv",
- "eyre",
- "hex",
- "k256",
- "once_cell",
- "parking_lot",
- "sec1",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "aws-lc-rs"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2217,6 +2192,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
 dependencies = [
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "hsm-signer"
+version = "0.1.0"
+dependencies = [
+ "alloy",
+ "alloy-consensus",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-signer",
+ "async-trait",
+ "aws-config",
+ "aws-sdk-kms",
+ "cryptoki",
+ "dotenv",
+ "eyre",
+ "hex",
+ "k256",
+ "once_cell",
+ "parking_lot",
+ "sec1",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

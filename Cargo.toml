@@ -1,5 +1,5 @@
 [package]
-name = "aws-hsm-cli-rust"
+name = "hsm-signer"
 version = "0.1.0"
 edition = "2024"
 
