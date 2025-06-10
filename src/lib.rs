@@ -245,6 +245,7 @@ mod tests {
 
     use alloy::signers::aws::AwsSigner;
     use alloy_consensus::{SignableTransaction, TxLegacy};
+    use alloy_network::TxSigner;
     use alloy_primitives::{Address, TxKind};
     use alloy_signer::Signer;
     use aws_config::{BehaviorVersion, Region};
@@ -277,8 +278,8 @@ mod tests {
         let mut tx = TxLegacy::default();
         tx.to = TxKind::Call(Address::random());
 
-        let hsm_tx_sig = hms_signer.sign_hash_sync(&tx.signature_hash()).unwrap();
-        let kms_tx_sig = kms_signer.sign_hash(&tx.signature_hash()).await.unwrap();
+        let hsm_tx_sig = hms_signer.sign_transaction(&mut tx.clone()).unwrap();
+        let kms_tx_sig = kms_signer.sign_transaction(&mut tx.clone()).await.unwrap();
 
         assert_eq!(hms_signer.address, kms_signer.address());
         assert_eq!(hms_signer.pubkey, kms_signer.get_pubkey().await.unwrap());
