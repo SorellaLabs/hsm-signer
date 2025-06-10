@@ -45,7 +45,7 @@ use tracing::instrument;
 ///
 /// ## Sync **and** Async
 ///
-/// Unlike the `AwsSigner`, `Pkcs11Signer` supports both the `Signer` (async)
+/// `Pkcs11Signer` supports both the `Signer` (async)
 /// *and* `SignerSync` traits.  The underlying HSM calls are blocking, so the
 /// async methods simply run on the current thread; choose whichever style
 /// integrates best with your codebase.
@@ -140,7 +140,7 @@ impl Pkcs11SignerConfig {
     }
 }
 
-/// Errors thrown by [`AwsSigner`].
+/// Errors thrown by [`Pkcs11Signer`].
 #[derive(Debug, thiserror::Error)]
 pub enum Pkcs11SignerError {
     /// [`ecdsa`] error.
