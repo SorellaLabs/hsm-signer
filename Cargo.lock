@@ -895,6 +895,7 @@ dependencies = [
  "dotenv",
  "eyre",
  "hex",
+ "k256",
  "once_cell",
  "parking_lot",
  "sha3",

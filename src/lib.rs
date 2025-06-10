@@ -2,15 +2,12 @@ use std::{path::Path, sync::Arc};
 
 use alloy_consensus::SignableTransaction;
 use alloy_primitives::{Address, B256, ChainId, keccak256};
-use alloy_signer::{
-    Signature, Signer, SignerSync,
-    k256::{
-        EncodedPoint,
-        ecdsa::{self, VerifyingKey},
-    },
-    sign_transaction_with_chain_id,
-};
+use alloy_signer::{Signature, Signer, SignerSync, sign_transaction_with_chain_id};
 use async_trait::async_trait;
+use k256::{
+    EncodedPoint,
+    ecdsa::{self, VerifyingKey},
+};
 
 use cryptoki::{
     context::{CInitializeArgs, Pkcs11},
