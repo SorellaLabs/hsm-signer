@@ -29,7 +29,7 @@ integrates best with your codebase.
 ## Configuration
 
 ```rust
-use alloy_signer_pkcs11::{Pkcs11Signer, Pkcs11SignerConfig};
+use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
 use alloy_primitives::ChainId;
 use cryptoki::object::Attribute;
 fn main() -> anyhow::Result<()> {

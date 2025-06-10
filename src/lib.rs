@@ -53,7 +53,7 @@ use tracing::instrument;
 /// ## Configuration
 ///
 /// ```no_run
-/// use alloy_signer_pkcs11::{Pkcs11Signer, Pkcs11SignerConfig};
+/// use hsm_signer::{Pkcs11Signer, Pkcs11SignerConfig};
 /// use alloy_primitives::ChainId;
 /// use cryptoki::object::Attribute;
 /// # fn main() -> anyhow::Result<()> {
