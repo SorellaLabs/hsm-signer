@@ -134,12 +134,14 @@ mod tests {
     #[test]
     fn test_sign() {
         let signer = Pkcs11Signer::new_from_env(
-            "angstrom_test-eth-public-key",
-            "angstrom_test-eth-private-key",
+            "angstrom3-eth-public-key",
+            "angstrom3-eth-private-key",
             "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
             ChainId::from(1u64),
         )
         .unwrap();
+
+        println!("address: {}", signer.address);
 
         let mut first_msg = TxLegacy::default();
         first_msg.to = TxKind::Call(Address::random());
