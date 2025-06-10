@@ -58,7 +58,8 @@ impl Pkcs11Signer {
             _ => panic!("Unexpected EC_POINT type"),
         };
         let address = if der.len() > 2 && der[0] == 0x04 {
-            Address::from_slice(&der[2..])
+            Address::from_slice(&der[..])
+            // Address::from_slice(&der[2..])
         } else {
             Address::from_slice(&der[..])
         };
