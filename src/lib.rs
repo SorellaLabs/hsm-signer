@@ -136,11 +136,14 @@ fn address_from_ec_point(der: &[u8]) -> eyre::Result<Address> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    use alloy::signers::aws::AwsSigner;
     use alloy_consensus::{SignableTransaction, TxLegacy};
     use alloy_primitives::{Address, TxKind};
+    use alloy_signer::Signer;
     use alloy_signer_local::LocalSigner;
-
-    use super::*;
+    use aws_config::{BehaviorVersion, Region};
 
     #[test]
     fn test_sign() {
@@ -163,5 +166,33 @@ mod tests {
 
         let mut second_msg = TxLegacy::default();
         second_msg.to = TxKind::Call(Address::random());
+    }
+
+    #[tokio::test]
+    async fn test_kms_equals() {
+        dotenv::dotenv().ok();
+
+        let hms_signer = Pkcs11Signer::new_from_env(
+            "angstrom3-eth-public-key-test",
+            "angstrom3-eth-private-key-test",
+            "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so",
+            ChainId::from(1u64),
+        )
+        .unwrap();
+
+        let mut cfg_builder = aws_config::load_defaults(BehaviorVersion::latest())
+            .await
+            .into_builder();
+        cfg_builder.set_region(Some(Region::from_static("ap-northeast-1")));
+        let cfg = cfg_builder.build();
+
+        let client = aws_sdk_kms::Client::new(&cfg);
+
+        let key_id = "49ceaac6-f957-4b78-88ea-1da347395bd8";
+        let signer = AwsSigner::new(client, key_id.into(), Some(1))
+            .await
+            .unwrap();
+
+        assert_eq!(hms_signer.address, signer.address());
     }
 }
