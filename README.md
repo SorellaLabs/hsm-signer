@@ -33,7 +33,7 @@ use alloy_signer_pkcs11::{Pkcs11Signer, Pkcs11SignerConfig};
 use alloy_primitives::ChainId;
 use cryptoki::object::Attribute;
 fn main() -> anyhow::Result<()> {
-    let cfg = Pkcs11SignerConfig::from_env_with_defaults(
+    let cfg = Pkcs11SignerConfig::new(
         Attribute::Label("my-pub".into()),  // public key selector
         0,                                  // take the first match
         Attribute::Label("my-priv".into()), // private key selector
