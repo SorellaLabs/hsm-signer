@@ -275,14 +275,21 @@ mod tests {
             .await
             .unwrap();
 
+        assert_eq!(
+            hms_signer.address,
+            alloy_signer::Signer::address(&kms_signer)
+        );
+        assert_eq!(hms_signer.pubkey, kms_signer.get_pubkey().await.unwrap());
+
         let mut tx = TxLegacy::default();
         tx.to = TxKind::Call(Address::random());
 
-        let hsm_tx_sig = hms_signer.sign_transaction(&mut tx.clone()).unwrap();
-        let kms_tx_sig = kms_signer.sign_transaction(&mut tx.clone()).await.unwrap();
+        let hsm_tx_sig0 = hms_signer.sign_transaction(&mut tx.clone()).await.unwrap();
+        let kms_tx_sig0 = kms_signer.sign_transaction(&mut tx.clone()).await.unwrap();
+        assert_eq!(hsm_tx_sig0, kms_tx_sig0);
 
-        assert_eq!(hms_signer.address, kms_signer.address());
-        assert_eq!(hms_signer.pubkey, kms_signer.get_pubkey().await.unwrap());
-        assert_eq!(hsm_tx_sig, kms_tx_sig);
+        let hsm_tx_sig1 = hms_signer.sign_hash_sync(&tx.signature_hash()).unwrap();
+        let kms_tx_sig1 = kms_signer.sign_hash(&tx.signature_hash()).await.unwrap();
+        assert_eq!(hsm_tx_sig1, kms_tx_sig1);
     }
 }
