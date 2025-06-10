@@ -191,7 +191,7 @@ impl Pkcs11Signer {
         let ec_attr = session.get_attributes(pub_key, &[AttributeType::EcPoint])?;
         let der = match &ec_attr[0] {
             Attribute::EcPoint(point) => point.clone(),
-            _ => panic!("Expected EC_POINT type"),
+            _ => return Err(Pkcs11SignerError::IncorrectEcPointFormat),
         };
         let address = address_from_ec_point(&der)?;
         let pubkey = verifying_key_ec_point(&der)?;
