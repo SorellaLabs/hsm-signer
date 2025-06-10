@@ -158,12 +158,12 @@ fn verifying_key_ec_point(der: &[u8]) -> eyre::Result<VerifyingKey> {
 
     // --- ensure 65-byte uncompressed point ---
     let sec1 = if sec1[0] == 0x04 && sec1.len() == 65 {
-        sec1
+        sec1.to_vec()
     } else if sec1.len() == 64 {
         let mut buf = [0u8; 65];
         buf[0] = 0x04;
         buf[1..].copy_from_slice(sec1);
-        &buf
+        buf.to_vec()
     } else {
         eyre::bail!("unexpected EC point format/length");
     };
