@@ -100,9 +100,11 @@ impl Pkcs11Signer {
 
     pub fn sign_message<B: AsRef<[u8]>>(&self, msg: B) -> Result<Vec<u8>, cryptoki::error::Error> {
         let lock = self.session.lock();
-        let out = lock.sign(&Mechanism::EcdsaSha256, self.pk_handle, msg.as_ref());
+        let out = lock
+            .sign(&Mechanism::EcdsaSha256, self.pk_handle, msg.as_ref())
+            .unwrap();
         drop(lock);
-        out
+        Ok(out)
     }
 
     pub fn sign_digest_with_key(&self, digest: &B256) -> eyre::Result<ecdsa::Signature> {
