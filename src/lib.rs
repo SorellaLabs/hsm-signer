@@ -125,17 +125,18 @@ impl Pkcs11SignerConfig {
         public_key_label: &str,
         private_key_label: &str,
         pkcs11_lib_path: PathBuf,
+        cloud_hsm_pin: Option<String>,
     ) -> Self {
         Self {
             public_key_attribute: Attribute::Label(public_key_label.into()),
             public_key_slot: 0,
             private_key_attribute: Attribute::Label(private_key_label.into()),
             private_key_slot: 0,
-            cloud_hsm_pin: AuthPin::new(
+            cloud_hsm_pin: AuthPin::new(cloud_hsm_pin.unwrap_or(
                 std::env::var("CLOUDHSM_PIN").expect(
                     "CLOUDHSM_PIN not found -- `export CLOUDHSM_PIN=\"CryptoUser:YourPass\"`",
                 ),
-            ),
+            )),
             pkcs11_lib_path,
             token_slot: 0,
         }
@@ -380,6 +381,7 @@ mod tests {
             "angstrom3-eth-public-key-test-meow",
             "angstrom3-eth-private-key-test-meow",
             PathBuf::from("/opt/cloudhsm/lib/libcloudhsm_pkcs11.so"),
+            None,
         );
         Pkcs11Signer::new(config, Some(ChainId::from(1u64))).unwrap()
     }
