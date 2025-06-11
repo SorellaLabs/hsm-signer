@@ -213,6 +213,11 @@ impl Pkcs11Signer {
         })
     }
 
+    /// returns the verifying key for the signer
+    pub fn verifying_key(&self) -> VerifyingKey {
+        self.pubkey.clone()
+    }
+
     /// Sign a message with the signers key
     pub fn sign_message<B: AsRef<[u8]>>(&self, msg: B) -> Result<Vec<u8>, Pkcs11SignerError> {
         let lock = self.session.lock();
