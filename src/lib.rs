@@ -1,5 +1,3 @@
-use std::{path::PathBuf, sync::Arc};
-
 use alloy_consensus::SignableTransaction;
 use alloy_primitives::{Address, B256, ChainId, keccak256};
 use alloy_signer::{Signature, Signer, SignerSync, sign_transaction_with_chain_id};
@@ -8,6 +6,7 @@ use k256::{
     EncodedPoint,
     ecdsa::{self, VerifyingKey},
 };
+use std::{path::PathBuf, sync::Arc};
 
 use cryptoki::{
     context::{CInitializeArgs, Pkcs11},
@@ -383,8 +382,8 @@ mod tests {
 
     fn hms_signer() -> Pkcs11Signer {
         let config = Pkcs11SignerConfig::from_env_with_defaults(
-            "angstrom3-eth-public-key-test-meow",
-            "angstrom3-eth-private-key-test-meow",
+            "my-public-key",
+            "my-private-key",
             PathBuf::from("/opt/cloudhsm/lib/libcloudhsm_pkcs11.so"),
             None,
         );
@@ -395,12 +394,12 @@ mod tests {
         let mut cfg_builder = aws_config::load_defaults(BehaviorVersion::latest())
             .await
             .into_builder();
-        cfg_builder.set_region(Some(Region::from_static("ap-northeast-1")));
+        cfg_builder.set_region(Some(Region::from_static("my-region")));
         let cfg = cfg_builder.build();
 
         let client = aws_sdk_kms::Client::new(&cfg);
 
-        let key_id = "534a7042-d225-4a8a-8494-3fb29c9c1617";
+        let key_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
         AwsSigner::new(client, key_id.into(), Some(1))
             .await
             .unwrap()
